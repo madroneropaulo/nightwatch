@@ -38,6 +38,7 @@ module.exports = {
 
     testStartServer : function(done) {
       this.mockedSpawn.setStrategy(function (command, args, opts) {
+        assert.deepEqual(opts, {stdio : ['ignore', 'pipe', 'pipe']});
         if (command !== 'java') {
           return null;
         }
@@ -59,10 +60,9 @@ module.exports = {
           }
         }
       }, function(error, process) {
-        assert.ok('Callback called');
         assert.equal(process.command, 'java');
-        assert.deepEqual(process.args, ['-jar', './selenium.jar', '-port', 4444, '-host', '127.0.0.1', '-Dwebdriver.test.property=test', '-DpropName=1']);
-        assert.equal(process.host, '127.0.0.1');
+        assert.deepEqual(process.args, ['-DpropName=1', '-Dwebdriver.test.property=test', '-jar', './selenium.jar', '-port', 4444]);
+        assert.equal(process.host, undefined);
         assert.equal(process.port, 4444);
         assert.equal(error, null);
         done();

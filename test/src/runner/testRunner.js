@@ -1,4 +1,5 @@
 var path = require('path');
+var fs = require('fs');
 var assert = require('assert');
 var common = require('../../common.js');
 var CommandGlobals = require('../../lib/globals/commands.js');
@@ -28,6 +29,21 @@ module.exports = {
         done();
       });
       runner.run();
+    },
+
+    testRunNoSrcFoldersArgument : function(done) {
+      var runner = new Runner(undefined, {}, {
+        output_folder : false
+      });
+      try {
+        runner.run().catch(function(err) {
+          done(err);
+        });
+      } catch (ex) {
+        assert.ok(ex instanceof Error);
+        assert.equal(ex.message, 'No source folder defined. Check configuration.');
+        done();
+      }
     },
 
     testRunSimple: function (done) {
@@ -89,15 +105,90 @@ module.exports = {
           { name: '', module: 'tags/sampleTags', group : 'tags' }
         ]);
 
-        var fs = require('fs');
         fs.readdir(src_folders[0], function(err, list) {
           try {
             assert.deepEqual(list, ['simple', 'tags'], 'The subfolders have been created.');
             var simpleReportFile = 'output/simple/FIREFOX_TEST_TEST_sample.xml';
             var tagsReportFile = 'output/tags/FIREFOX_TEST_TEST_sampleTags.xml';
 
-            assert.ok(fs.existsSync(simpleReportFile), 'The simple report file was not created.');
-            assert.ok(fs.existsSync(tagsReportFile), 'The tags report file was not created.');
+            assert.ok(fileExistsSync(simpleReportFile), 'The simple report file was not created.');
+            assert.ok(fileExistsSync(tagsReportFile), 'The tags report file was not created.');
+            done();
+          } catch (err) {
+            done(err);
+          }
+        });
+      });
+
+      runner.run().catch(function (err) {
+        done(err);
+      });
+    },
+
+    testRunWithJUnitOutputAndFailures : function(done) {
+      var src_folders = [
+        path.join(__dirname, '../../sampletests/withfailures')
+      ];
+
+      var runner = new Runner(src_folders, {
+        seleniumPort : 10195,
+        silent : true,
+        output : false
+      }, {
+        output_folder : 'output',
+        start_session : true,
+        src_folders : src_folders,
+        reporter : 'junit'
+      }, function(err, results) {
+
+        assert.strictEqual(err, null);
+        var sampleReportFile = path.join(__dirname, '../../../output/FIREFOX_TEST_TEST_sample.xml');
+
+        assert.ok(fileExistsSync(sampleReportFile), 'The sample file report file was not created.');
+        fs.readFile(sampleReportFile, function(err, data) {
+          if (err) {
+            done(err);
+            return;
+          }
+          var content = data.toString();
+          assert.ok(content.indexOf('<failure message="Testing if element &lt;#badElement&gt; is present.">') > 0, 'Report contains failure information.')
+          done();
+        });
+      });
+
+      runner.run().catch(function (err) {
+        done(err);
+      });
+    },
+
+    'test run unit tests with junit output and failures' : function(done) {
+      var src_folders = [
+        path.join(__dirname, '../../asynchookstests/unittest-failure')
+      ];
+
+      var runner = new Runner(src_folders, {
+        seleniumPort : 10195,
+        silent : true,
+        output : false
+      }, {
+        output_folder : 'output',
+        start_session : false,
+        src_folders : src_folders,
+        reporter : 'junit'
+      }, function(err, results) {
+
+        assert.strictEqual(err, null);
+        var sampleReportFile = path.join(__dirname, '../../../output/unittest-failure.xml');
+
+        assert.ok(fileExistsSync(sampleReportFile), 'The sample file report file was not created.');
+        fs.readFile(sampleReportFile, function(err, data) {
+          if (err) {
+            done(err);
+            return;
+          }
+          var content = data.toString();
+          try {
+            assert.ok(content.indexOf('<failure message="AssertionError: 1 == 0 - expected &quot;0&quot; but got: &quot;1&quot;">') > 0, 'Report contains failure information.')
             done();
           } catch (err) {
             done(err);
@@ -148,6 +239,7 @@ module.exports = {
 
       var runner = new Runner([testsPath], {
         seleniumPort: 10195,
+        seleniumHost: '127.0.0.1',
         silent: true,
         output: false,
         persist_globals : true,
@@ -164,3 +256,14 @@ module.exports = {
     }
   }
 };
+
+
+// util to replace deprecated fs.existsSync
+function fileExistsSync (path) {
+  try {
+    fs.statSync(path);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}

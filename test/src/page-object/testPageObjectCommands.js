@@ -49,6 +49,43 @@ module.exports = {
       this.client.start();
     },
 
+    testPageObjectCallbackContext : function(done) {
+      var api = this.client.api;
+      var page = api.page.simplePageObj();
+
+      page
+        .waitForElementPresent('#weblogin', 1000, true, function callback(result) {
+          assert.equal(this, api, 'page callback context using selector should equal api');
+        })
+        .waitForElementPresent('#weblogin', 1000, true, function callback(result) {
+          assert.equal(this, api, 'page callback context using selector with message should equal api');
+        }, 'Test sample message')
+        .waitForElementPresent('@loginCss', 1000, true, function callback(result) {
+          assert.equal(this, api, 'page callback context using element should equal api');
+        })
+        .waitForElementPresent('@loginCss', 1000, true, function callback(result) {
+          assert.equal(this, api, 'page callback context using element with message should equal api');
+          done();
+        }, 'Test sample message');
+
+      this.client.start();
+    },
+
+    testPageObjectLocateStrategy : function(done) {
+      var client = this.client;
+      var page = client.api.page.simplePageObj();
+
+      assert.equal(client.locateStrategy, 'css selector', 'locateStrategy should default to css selector');
+
+      page
+        .waitForElementPresent('@loginXpath', 1000, true, function callback(result) {
+          assert.equal(client.locateStrategy, 'css selector', 'locateStrategy should restore to previous css selector in callback when using xpath element');
+          done();
+        });
+
+      this.client.start();
+    },
+
     testPageObjectElementRecursion : function(done) {
       MockServer.addMock({
         'url' : '/wd/hub/session/1352110219202/element/1/click',
@@ -134,6 +171,37 @@ module.exports = {
       assert.equal(typeof page.section.propTest.props, 'object', 'props function should be called and set page.props equals its returned object');
       assert.ok(page.section.propTest.props.defaults.propTest, 'props function should be called with page context');
       assert.equal(page.section.propTest.props.defaults.propTest, '#propTest Value' );
+    },
+
+    testPageObjectWithUrlChanged : function(done) {
+      var page = this.client.api.page.simplePageObj();
+      var urlsArr = [];
+      page.api.url = function(url) {
+        urlsArr.push(url);
+      };
+
+      page.navigate();
+
+      page.api.perform(function() {
+        page.url = function() {
+          return 'http://nightwatchjs.org'
+        }
+      });
+
+      page.api.perform(function() {
+        page.navigate();
+      });
+
+      page.api.perform(function() {
+        try {
+          assert.deepEqual(urlsArr, ['http://localhost.com', 'http://nightwatchjs.org']);
+          done();
+        } catch (err) {
+          done(err);
+        }
+      });
+
+      this.client.start();
     }
   }
 };

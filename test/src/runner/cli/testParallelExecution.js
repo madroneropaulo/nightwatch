@@ -42,10 +42,6 @@ module.exports = {
         }
       });
 
-      //mockery.registerMock('../lib/runner/run.js', {
-      //  run: function (source, settings, opts, callback) {
-      //  }
-      //});
       mockery.registerMock('os', {
         cpus: function () {
           return [0, 1];
@@ -151,8 +147,6 @@ module.exports = {
       assert.ok(runner.parallelMode);
     },
 
-
-
     testParallelExecutionWithWorkersAuto: function (done) {
       var self = this;
       var CliRunner = common.require('runner/cli/clirunner.js');
@@ -229,12 +223,31 @@ module.exports = {
       var CliRunner = common.require('runner/cli/clirunner.js');
       var runner = new CliRunner({
         config: path.join(__dirname, '../../../extra/parallelism.json'),
-        '_' : [path.join(__dirname, '../../../sampletests/async/sample.js')]
+        _source : [path.join(__dirname, '../../../sampletests/async/sample.js')]
       });
 
       runner.setup();
 
       assert.equal(runner.singleSourceFile(), true);
+    },
+
+    testWorkerAndGetTestSource: function () {
+      var CliRunner = common.require('runner/cli/clirunner.js');
+      CliRunner.prototype.isParallelMode = function() {
+        return true;
+      };
+
+      var runner = new CliRunner({
+        config: path.join(__dirname, '../../../extra/parallelism.json')
+      });
+      runner.setup();
+
+      runner.argv['test-worker'] = true;
+      runner.argv['test'] = path.join(__dirname, '../../../sampletests/async/sample');
+
+      var testsource = runner.getTestSource();
+      var filePath = '/sampletests/async/sample.js';
+      assert.equal(testsource.slice(filePath.length * -1), filePath);
     }
   }
 };
